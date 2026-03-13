@@ -80,7 +80,7 @@ function deleteItem(id) {
 
 // Функція рендерингу таблиці 
 function renderTable() {
-    // Очищення та заповнення таблиці через innerHTML 
+    // Очищення та заповнення таблиці 
     tbody.innerHTML = requests.map((item, index) => `
         <tr>
             <td>${index + 1}</td>
@@ -96,7 +96,7 @@ function renderTable() {
     `).join('');
 }
 
-// Допоміжні функції для UI (Помилки та класи) [cite: 1063, 1320]
+// Допоміжні функції для UI (Помилки та класи) 
 function showError(inputId, errorId, message) {
     document.getElementById(inputId).classList.add('invalid');
     document.getElementById(errorId).innerHTML = message;
