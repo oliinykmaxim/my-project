@@ -1,0 +1,21 @@
+### Перевірка 200 OK (Список обладнання)
+GET http://localhost:3000/api/equipment
+
+###
+### Перевірка 201 Created (Створення нового предмета)
+POST http://localhost:3000/api/equipment
+Content-Type: application/json
+
+{
+    "name": "Ноутбук Dell",
+    "status": "available"
+}
+
+###
+### Перевірка 400 Bad Request (Відправка без імені)
+POST http://localhost:3000/api/equipment
+Content-Type: application/json
+
+{
+    "status": "broken"
+}
