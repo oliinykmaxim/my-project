@@ -1,149 +1,177 @@
 ﻿import express from "express";
-import { migrate } from "./db/migrate.js"; 
 import { EquipmentRepository } from "./repositories/equipment.repository.js";
+import { EquipmentService } from "./services/equipment.service.js";
+import { UserRepository } from "./repositories/user.repository.js";
+import { UserService } from "./services/user.service.js";
 
 const app = express();
-app.use(express.json()); 
+app.use(express.json());
 
+// ВБУДОВАНЕ ЛОГУВАННЯ  (метод, шлях, статус, час виконання у мс)
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[LOG] ${req.method} ${req.originalUrl} | Status: ${res.statusCode} | ${duration}ms`);
+    });
+    next();
+});
+
+// Ініціалізація сервісів та репозиторіїв
 const repo = new EquipmentRepository();
+const service = new EquipmentService(repo);
+
+const userRepo = new UserRepository();
+const userService = new UserService(userRepo);
 
 // ==========================================
-// 1. CRUD МАРШРУТИ З ЛР№2 (Переведені на SQL)
+// МАРШРУТИ ДЛЯ ОБЛАДНАННЯ (EQUIPMENT)
 // ==========================================
 
-// GET ALL (Отримання списку обладнання з фільтрацією та сортуванням)
+// 1. GET /api/equipment — отримання списку (з фільтрацією за статусом)
 app.get("/api/equipment", async (req, res) => {
     try {
         const status = req.query.status as string;
-        const userId = req.query.userId as string;
-        const sort = req.query.sort as string;
-        const order = req.query.order as string;
-
-        // Викликаємо оновлений метод репозиторію з параметрами фільтрації
-        const result = await repo.getAll({ status, userId }, { column: sort, order });
-        res.status(200).json({ data: result }); 
+        const result = await service.list(status);
+        res.status(200).json(result); // 200 OK і коректний JSON
     } catch (error) {
         console.error("Помилка при отриманні списку:", error);
-        res.status(500).json({ error: "Внутрішня помилка сервера" }); 
+        res.status(500).json({ error: "Внутрішня помилка сервера" });
     }
 });
 
-// POST CREATE (Створення нового обладнання)
-app.post("/api/equipment", async (req, res) => {
-    try {
-        if (!req.body || Object.keys(req.body).length === 0) {
-            return res.status(400).json({ error: "Тіло запиту порожнє" }); 
-        }
-
-        const { code, name, status, userId } = req.body;
-        if (!code || !name || !status || !userId) {
-            return res.status(400).json({ error: "Поля code, name, status та userId є обов'язковими" }); 
-        }
-
-        // Передаємо правильний об'єкт, який очікує наш репозиторій
-        const item = await repo.create({ code, name, status, userId: Number(userId) });
-        res.status(201).json({ data: item }); 
-    } catch (error: any) {
-        console.error("Помилка при створенні:", error);
-        
-        if (error.message && error.message.includes("UNIQUE constraint failed")) {
-            return res.status(409).json({ error: "Обладнання з таким кодом (code) вже існує" });
-        }
-        res.status(500).json({ error: "Не вдалося створити запис" }); 
-    }
-});
-
-// ==========================================
-// 2. НОВІ ЕНДПОІНТИ (Вимога на "Відмінно")
-// ==========================================
-
-// GET BY ID + JOIN (Отримання техніки разом із даними користувача)
+// 2. GET /api/equipment/:id — отримати ОДИН об'єкт за ID
 app.get("/api/equipment/:id", async (req, res) => {
     try {
-        const id = Number(req.params.id);
-        if (isNaN(id)) return res.status(400).json({ error: "ID має бути числом" });
-
-        // Метод тепер викликається успішно, бо типи збігаються
-        const item = await repo.getWithUser(id);
-        if (!item) return res.status(404).json({ error: "Обладнання не знайдено" });
-
-        res.status(200).json({ data: item });
+        const item = await service.getById(req.params.id);
+        if (!item) {
+            return res.status(404).json({ error: "Обладнання з таким ID не знайдено" }); // 404 за ТЗ
+        }
+        res.status(200).json(item);
     } catch (error) {
         console.error("Помилка при отриманні за ID:", error);
         res.status(500).json({ error: "Внутрішня помилка сервера" });
     }
 });
 
-// GET AGGREGATION STATS (Статистика вартості ремонтів з третьої таблиці)
-app.get("/api/equipment-stats/maintenance", async (req, res) => {
+// 3. POST /api/equipment — створити новий об'єкт
+app.post("/api/equipment", async (req, res) => {
     try {
-        const stats = await repo.getMaintenanceStats();
-        res.status(200).json({ data: stats });
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ error: "Тіло запиту порожнє" }); // 400 Bad Request
+        }
+
+        if (!req.body.itemCode) {
+            return res.status(400).json({ error: "Поле 'itemCode' є обов'язковим" });
+        }
+
+        const item = await service.create(req.body);
+        res.status(201).json(item); // 201 Created і створений об'єкт за ТЗ
     } catch (error) {
-        console.error("Помилка при отриманні статистики:", error);
-        res.status(500).json({ error: "Внутрішня помилка сервера" });
-    }
-    });
-    // GET VULNERABLE SEARCH (Демонстраційний ендпоінт для тестування SQL-ін'єкцій)
-app.get("/api/equipment-security/search", async (req, res) => {
-    try {
-        const query = (req.query.q as string) || "";
-        const result = await repo.searchVulnerable(query);
-        res.status(200).json({ data: result });
-    } catch (error) {
-        console.error("Помилка пошуку:", error);
-        res.status(500).json({ error: "Помилка виконання SQL-запиту" });
+        console.error("Помилка при створенні:", error);
+        res.status(500).json({ error: "Не вдалося створити запис" });
     }
 });
 
-// PUT UPDATE (Оновлення інформації)
+// 4. PUT /api/equipment/:id — замінити/оновити повністю об'єкт за ID
 app.put("/api/equipment/:id", async (req, res) => {
     try {
-        const id = Number(req.params.id);
-        if (isNaN(id)) return res.status(400).json({ error: "ID має бути числом" });
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ error: "Тіло запиту порожнє" });
+        }
 
-        const { name, status } = req.body;
-        if (!name || !status) return res.status(400).json({ error: "Поля name та status обов'язкові" });
+        if (!req.body.itemCode) {
+            return res.status(400).json({ error: "Поле 'itemCode' є обов'язковим для оновлення" });
+        }
 
-        const updated = await repo.update(id, { name, status });
-        if (!updated) return res.status(404).json({ error: "Обладнання не знайдено" });
-
-        res.status(200).json({ data: updated });
+        const updated = await service.update(req.params.id, req.body);
+        if (!updated) {
+            return res.status(404).json({ error: "Обладнання з таким ID не знайдено" });
+        }
+        res.status(200).json(updated); // 200 OK і оновлений об'єкт
     } catch (error) {
+        console.error("Помилка при оновленні:", error);
         res.status(500).json({ error: "Внутрішня помилка сервера" });
     }
 });
 
-// DELETE (Видалення запису)
+// 5. DELETE /api/equipment/:id — видалити об'єкт за ID
 app.delete("/api/equipment/:id", async (req, res) => {
     try {
-        const id = Number(req.params.id);
-        if (isNaN(id)) return res.status(400).json({ error: "ID має бути числом" });
-
-        const deleted = await repo.delete(id);
-        if (!deleted) return res.status(404).json({ error: "Обладнання не знайдено" });
-
-        res.status(204).send(); 
+        const deleted = await service.delete(req.params.id);
+        if (!deleted) {
+            return res.status(404).json({ error: "Обладнання з таким ID не знайдено" });
+        }
+        res.status(204).send(); // 204 No Content за ТЗ (без тіла відповіді)
     } catch (error) {
+        console.error("Помилка при видаленні:", error);
         res.status(500).json({ error: "Внутрішня помилка сервера" });
     }
 });
 
 // ==========================================
-// 3. АСИНХРОННИЙ БУТСТРАП СИСТЕМИ ТА МІГРАЦІЙ
+// МАРШРУТИ ДЛЯ КОРИСТУВАЧІВ (USERS)
 // ==========================================
-async function startServer() {
+
+app.get("/api/users", async (req, res) => {
     try {
-        console.log("Запуск перевірки схеми та міграцій БД...");
-        await migrate();
-
-        app.listen(3000, () => {
-            console.log("🚀🚀🚀 API started on http://localhost:3000");
-        });
+        const result = await userService.list();
+        res.status(200).json(result);
     } catch (error) {
-        console.error("🔴 Критична помилка при запуску сервера:", error);
-        process.exit(1);
+        res.status(500).json({ error: "Внутрішня помилка сервера" });
     }
-}
+});
 
-startServer();
+app.get("/api/users/:id", async (req, res) => {
+    try {
+        const item = await userService.getById(req.params.id);
+        if (!item) return res.status(404).json({ error: "Користувача не знайдено" });
+        res.status(200).json(item);
+    } catch (error) {
+        res.status(500).json({ error: "Внутрішня помилка сервера" });
+    }
+});
+
+app.post("/api/users", async (req, res) => {
+    try {
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ error: "Тіло запиту порожнє" });
+        }
+        if (!req.body.email) return res.status(400).json({ error: "Поле email обов'язкове" });
+        
+        const item = await userService.create(req.body);
+        res.status(201).json(item);
+    } catch (error) {
+        res.status(500).json({ error: "Внутрішня помилка сервера" });
+    }
+});
+
+app.put("/api/users/:id", async (req, res) => {
+    try {
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ error: "Тіло запиту порожнє" });
+        }
+        if (!req.body.email) return res.status(400).json({ error: "Поле email обов'язкове" });
+        
+        const updated = await userService.update(req.params.id, req.body);
+        if (!updated) return res.status(404).json({ error: "Користувача не знайдено" });
+        res.status(200).json(updated);
+    } catch (error) {
+        res.status(500).json({ error: "Внутрішня помилка сервера" });
+    }
+});
+
+app.delete("/api/users/:id", async (req, res) => {
+    try {
+        const deleted = await userService.delete(req.params.id);
+        if (!deleted) return res.status(404).json({ error: "Користувача не знайдено" });
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ error: "Внутрішня помилка сервера" });
+    }
+});
+
+// Запуск сервера
+app.listen(3000, () => {
+    console.log("API started on http://localhost:3000");
+});

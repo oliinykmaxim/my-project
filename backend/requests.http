@@ -1,21 +1,85 @@
-### Перевірка 200 OK (Список обладнання)
+
+### УСПІШНІ ЗАПИТИ 
+
+
+### 1. Створення нового обладнання (Повертає 201 Created)
+POST http://localhost:3000/api/equipment
+Content-Type: application/json
+
+{
+  "itemCode": "EQ-9923",
+  "userName": "Максим Олійник",
+  "dateFrom": "2026-06-05",
+  "dateTo": "2026-06-12",
+  "status": "New",
+  "comment": "Потрібен ноутбук для розробки бекенду"
+}
+
+### 2. Отримання всього списку (Повертає 200 OK)
 GET http://localhost:3000/api/equipment
 
-###
-### Перевірка 201 Created (Створення нового предмета)
+### 3. Фільтрація за статусом (Повертає 200 OK)
+GET http://localhost:3000/api/equipment?status=New
+
+### 4. Отримання конкретного обладнання за ID (Повертає 200 OK)
+GET http://localhost:3000/api/equipment/22a5d32a-aa30-44dd-9701-8a561eb828ac
+
+### 5. Повне оновлення обладнання через PUT (Повертає 200 OK)
+PUT http://localhost:3000/api/equipment/22a5d32a-aa30-44dd-9701-8a561eb828ac
+Content-Type: application/json
+
+{
+  "itemCode": "EQ-9923",
+  "userName": "Максим Олійник",
+  "dateFrom": "2026-06-05",
+  "dateTo": "2026-06-20",
+  "status": "Approved",
+  "comment": "Заявку схвалено, термін продовжено"
+}
+
+
+
+### ПЕРЕВІРКА ПОМИЛОК 
+
+
+### 6. Помилка 400 Bad Request — Відправка порожнього тіла
 POST http://localhost:3000/api/equipment
 Content-Type: application/json
 
 {
-    "name": "Ноутбук Dell",
-    "status": "available"
 }
 
-###
-### Перевірка 400 Bad Request (Відправка без імені)
+### 7. Помилка 400 Bad Request — Відсутнє обов'язкове поле itemCode
 POST http://localhost:3000/api/equipment
 Content-Type: application/json
 
 {
-    "status": "broken"
+  "userName": "Іван Іванов",
+  "status": "New"
 }
+
+### 8. Помилка 404 Not Found — Спроба отримати об'єкт з НЕІСНУЮЧИМ ID (змінено кінець)
+GET http://localhost:3000/api/equipment/22a5d32a-aa30-44dd-9701-8a561eb828ERROR
+
+### 9. Помилка 404 Not Found — Спроба оновити об'єкт з НЕІСНУЮЧИМ ID
+PUT http://localhost:3000/api/equipment/22a5d32a-aa30-44dd-9701-8a561eb828ERROR
+Content-Type: application/json
+
+{
+  "itemCode": "EQ-0000",
+  "userName": "Хтось",
+  "dateFrom": "2026-06-05",
+  "dateTo": "2026-06-12",
+  "status": "Closed"
+}
+
+
+
+### ВИДАЛЕННЯ (ЗАВЕРШЕННЯ ЦИКЛУ)
+
+
+### 10. Успішне видалення обладнання (Повертає 204 No Content — без тіла)
+DELETE http://localhost:3000/api/equipment/22a5d32a-aa30-44dd-9701-8a561eb828ac
+
+### 11. Помилка 404 Not Found — Спроба видалити вже видалений або неіснуючий об'єкт
+DELETE http://localhost:3000/api/equipment/22a5d32a-aa30-44dd-9701-8a561eb828ERROR
