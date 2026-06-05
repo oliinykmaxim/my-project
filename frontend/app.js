@@ -82,7 +82,6 @@ function validate(dto) {
     }
     return isValid;
 }
-// Функція рендерингу таблиці 
 function renderTable() {
     tbody.innerHTML = requests.map((item, index) => `
         <tr>
@@ -91,7 +90,7 @@ function renderTable() {
             <td>${item.userName}</td>
             <td>${item.dateFrom} — ${item.dateTo}</td>
             <td>${item.status}</td>
-            <td>${item.comment}</td>
+            <td>${item.comment || ''}</td>
             <td>
                 <button type="button" onclick="deleteItem(${item.id})">Видалити</button>
             </td>
