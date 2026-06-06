@@ -1,47 +1,49 @@
-﻿import { v4 as uuidv4 } from "uuid";
-import { EquipmentRepository } from "../repositories/equipment.repository.js";
+﻿import { EquipmentRepository } from "../repositories/equipment.repository.js";
 import type { CreateEquipmentDto, EquipmentResponseDto } from "../dtos/equipment.dto.js";
 
 export class EquipmentService {
     constructor(private repository: EquipmentRepository) { }
 
-    async list(status?: string) {
-        let items = await this.repository.getAll();
-        // Фільтрація
-        if (status) {
-            items = items.filter(i => i.status === status);
-        }
-        return { items }; // Уніфікована відповідь
+    // Метод list приймає статус і передає його в репозиторій для SQL-фільтрації
+    // Метод list приймає статус, сортування та ліміт для SQL (Пункт 19)
+    async list(status?: string, sort?: string, order?: 'asc' | 'desc', limit?: string) {
+        const finalLimit = limit ? parseInt(limit, 10) : 100;
+        
+        // Передаємо параметри в репозиторій
+        const items = await this.repository.getAll(status, sort, order, isNaN(finalLimit) ? 100 : finalLimit);
+        
+        // Зберігаємо уніфікований формат відповіді з даними
+        return { items }; 
     }
 
     async create(dto: CreateEquipmentDto): Promise<EquipmentResponseDto> {
-        const newItem: EquipmentResponseDto = {
-            ...dto,
-            id: uuidv4() // ID генерується на бекенді
-        };
-        return this.repository.create(newItem);
+        // Передаємо чистий dto, база сама згенерує ID (завдяки твоїм міграціям INTEGER PRIMARY KEY)
+        return this.repository.create(dto);
     }
 
-    // 1. Отримати за ID (Додаємо сюди 👇)
     async getById(id: string): Promise<EquipmentResponseDto | null> {
-        const item = await this.repository.getById(id);
+        const numericId = parseInt(id, 10);
+        if (isNaN(numericId)) return null;
+
+        const item = await this.repository.getById(numericId);
         return item || null;
     }
 
-    // 2. Оновити
     async update(id: string, dto: CreateEquipmentDto): Promise<EquipmentResponseDto | null> {
-        const existing = await this.repository.getById(id);
+        const numericId = parseInt(id, 10);
+        if (isNaN(numericId)) return null;
+
+        const existing = await this.repository.getById(numericId);
         if (!existing) return null;
 
-        const updatedItem: EquipmentResponseDto = {
-            ...dto,
-            id: id // Зберігаємо той самий ID
-        };
-        return await this.repository.update(id, updatedItem) || null;
+        const updated = await this.repository.update(numericId, dto);
+        return updated || null;
     }
 
-    // 3. Видалити
     async delete(id: string): Promise<boolean> {
-        return await this.repository.delete(id);
+        const numericId = parseInt(id, 10);
+        if (isNaN(numericId)) return false;
+
+        return await this.repository.delete(numericId);
     }
 }

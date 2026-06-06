@@ -1,28 +1,47 @@
-import type { UserResponseDto } from "../dtos/user.dto.js";
+import { all, get, run } from "../db/dbClient.js";
+import type { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
 
 export class UserRepository {
-    private items: Map<string, UserResponseDto> = new Map();
-
+    
+    // Отримати всіх користувачів
     async getAll(): Promise<UserResponseDto[]> {
-        return Array.from(this.items.values());
+        return await all<UserResponseDto>(`SELECT id, name as fullName, email FROM Users`);
     }
 
-    async getById(id: string): Promise<UserResponseDto | undefined> {
-        return this.items.get(id);
+    // Пошук за числовим ID
+    async getById(id: number): Promise<UserResponseDto | undefined> {
+        return await get<UserResponseDto>(`SELECT id, name as fullName, email FROM Users WHERE id = ${id}`);
     }
 
-    async create(item: UserResponseDto): Promise<UserResponseDto> {
-        this.items.set(item.id, item);
-        return item;
+    // Створення користувача
+    async create(dto: CreateUserDto): Promise<UserResponseDto> {
+        const createdAt = new Date().toISOString();
+        
+        const query = `INSERT INTO Users (name, email, createdAt) 
+                       VALUES ('${dto.fullName}', '${dto.email}', '${createdAt}')`;
+        
+        const result = await run(query);
+        
+        return {
+            id: result.lastID.toString(),
+            fullName: dto.fullName,
+            email: dto.email,
+            role: dto.role
+        };
     }
 
-    async update(id: string, item: UserResponseDto): Promise<UserResponseDto | undefined> {
-        if (!this.items.has(id)) return undefined;
-        this.items.set(id, item);
-        return item;
+    // Оновлення користувача
+    async update(id: number, dto: CreateUserDto): Promise<UserResponseDto | undefined> {
+        const query = `UPDATE Users 
+                       SET name = '${dto.fullName}', email = '${dto.email}' 
+                       WHERE id = ${id}`;
+        await run(query);
+        return this.getById(id);
     }
 
-    async delete(id: string): Promise<boolean> {
-        return this.items.delete(id);
+    // Видалення користувача
+    async delete(id: number): Promise<boolean> {
+        const result = await run(`DELETE FROM Users WHERE id = ${id}`);
+        return (result.changes ?? 0) > 0;
     }
 }

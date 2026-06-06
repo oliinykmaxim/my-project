@@ -1,5 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
-import { UserRepository } from "../repositories/user.repository.js";
+import type { UserRepository } from "../repositories/user.repository.js";
 import type { CreateUserDto, UserResponseDto } from "../dtos/user.dto.js";
 
 export class UserService {
@@ -11,30 +10,24 @@ export class UserService {
     }
 
     async create(dto: CreateUserDto): Promise<UserResponseDto> {
-        const newItem: UserResponseDto = {
-            ...dto,
-            id: uuidv4()
-        };
-        return this.repository.create(newItem);
+        return this.repository.create(dto);
     }
 
     async getById(id: string): Promise<UserResponseDto | null> {
-        const item = await this.repository.getById(id);
-        return item || null;
+        const numericId = parseInt(id, 10);
+        if (isNaN(numericId)) return null;
+        return await this.repository.getById(numericId) || null;
     }
 
     async update(id: string, dto: CreateUserDto): Promise<UserResponseDto | null> {
-        const existing = await this.repository.getById(id);
-        if (!existing) return null;
-
-        const updatedItem: UserResponseDto = {
-            ...dto,
-            id: id
-        };
-        return await this.repository.update(id, updatedItem) || null;
+        const numericId = parseInt(id, 10);
+        if (isNaN(numericId)) return null;
+        return await this.repository.update(numericId, dto) || null;
     }
 
     async delete(id: string): Promise<boolean> {
-        return await this.repository.delete(id);
+        const numericId = parseInt(id, 10);
+        if (isNaN(numericId)) return false;
+        return await this.repository.delete(numericId);
     }
 }
