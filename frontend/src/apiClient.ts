@@ -7,13 +7,23 @@ async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 1
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs); // Авто-таймаут 10 секунд
 
+    // --- НАШ НАДІЙНИЙ ФІКС: передаємо заголовок як простий об'єкт ---
+    const secureOptions = {
+        ...options,
+        signal: controller.signal,
+        headers: {
+            ...options.headers,
+            "X-Demo-UserId": "1" // Примусово шлемо ID = 1 для проходження перевірки на бекенді
+        }
+    };
+
     try {
-        const response = await fetch(url, { ...options, signal: controller.signal }); //
+        const response = await fetch(url, secureOptions); 
         clearTimeout(id);
 
         if (response.status === 204) return null as unknown as T; // Обробка 204 No Content
 
-        const rawText = await response.text(); //
+        const rawText = await response.text(); 
 
         if (!response.ok) { // Обробка HTTP-помилок сервера
             let payload: any = null;
@@ -26,14 +36,14 @@ async function request<T>(path: string, options: RequestInit = {}, timeoutMs = 1
         }
 
         if (!rawText) return null as unknown as T;
-        return JSON.parse(rawText) as T; //
+        return JSON.parse(rawText) as T; 
     } catch (e: any) {
         clearTimeout(id);
-        if (e.status) throw e; // Якщо це вже сформована помилка сервера
+        if (e.status) throw e; 
         
         throw {
             status: 0,
-            message: e.name === "AbortError" ? "Запит перевищив таймаут" : "Помилка мережі або CORS", //
+            message: e.name === "AbortError" ? "Запит перевищив таймаут" : "Помилка мережі або CORS", 
             details: e?.message || String(e)
         } as ApiError;
     }

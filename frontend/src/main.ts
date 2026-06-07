@@ -18,20 +18,26 @@ if (!statusContainer) {
     }
 }
 
-// Функція рендерингу станів інтерфейсу (loading / empty / error / success)
+
+// Функція рендерингу станів інтерфейсу (loading / empty / error / success) - ЗАХИЩЕНА ВІД XSS
 function renderStatus(status: 'loading' | 'empty' | 'error' | 'success', msg?: string) {
     if (!statusContainer) return;
+    
+    // Очищаємо контейнер перед кожним рендером
+    statusContainer.innerHTML = '';
+
     if (status === 'loading') {
         statusContainer.innerHTML = `<span style="color: #c90;">⏳ Завантаження даних з сервера...</span>`;
     } else if (status === 'empty') {
         statusContainer.innerHTML = `<span style="color: #666;">📭 Немає активних заявок в реєстрі.</span>`;
     } else if (status === 'error') {
-        statusContainer.innerHTML = `<span style="color: #c00;">❌ Помилка: ${msg}</span>`;
-    } else {
-        statusContainer.innerHTML = '';
+        // SCENARIO B (XSS Mitigation): Замість innerHTML використовуємо безпечне створення елементу та textContent
+        const errorSpan = document.createElement('span');
+        errorSpan.style.color = '#c00';
+        errorSpan.textContent = `❌ Помилка: ${msg || ''}`; // Текст ніколи не перетвориться на HTML-тег
+        statusContainer.appendChild(errorSpan);
     }
 }
-
 // Захист від подвійного кліку: блокування форми під час виконання запиту
 function setFormEnabled(enabled: boolean) {
     if (!form) return;
