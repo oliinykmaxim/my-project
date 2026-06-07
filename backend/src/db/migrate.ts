@@ -20,6 +20,9 @@ export async function migrate(): Promise<void> {
         );
     `);
 
+    try { await run("ALTER TABLE Equipment ADD COLUMN dateTo TEXT;"); } catch(e) {}
+    try { await run("ALTER TABLE Equipment ADD COLUMN comment TEXT;"); } catch(e) {}
+    
     // Піднімаємось на один рівень вгору з src/db/ до src/, а потім ще на один до кореня /backend
     const migrationsDir = path.join(process.cwd(), "migrations");
     if (!fs.existsSync(migrationsDir)) {

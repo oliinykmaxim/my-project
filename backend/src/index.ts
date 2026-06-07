@@ -1,4 +1,5 @@
 ﻿import express from "express";
+import cors from "cors";
 import { migrate } from "./db/migrate.js"; 
 import { all } from "./db/dbClient.js"; // Оцієї стрічки якраз не вистачало на самому верху!
 import { EquipmentRepository } from "./repositories/equipment.repository.js";
@@ -12,6 +13,28 @@ import { MaintenanceService } from "./services/maintenance.service.js";
 
 const app = express();
 app.use(express.json());
+
+const allowedOrigins = [
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+];
+
+app.use(cors({
+    origin: (origin: any, callback: any) => {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("CORS-блокування: Цей Origin не дозволений конфігурацією вайтліста."));
+        }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+app.options("*", cors());
 
 // ВБУДОВАНЕ ЛОГУВАННЯ  (метод, шлях, status, час виконання у мс)
 app.use((req, res, next) => {

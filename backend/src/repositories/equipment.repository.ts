@@ -3,10 +3,9 @@ import type { CreateEquipmentDto, EquipmentResponseDto } from "../dtos/equipment
 
 export class EquipmentRepository {
     
-    // 1. Отримати всі
-  // 1. Отримати всі з фільтрацією, сортуванням та лімітом на рівні бази 
+    // 1. Отримати всі з фільтрацією, сортуванням та лімітом на рівні бази 
     async getAll(status?: string, sortField: string = 'id', order: 'asc' | 'desc' = 'desc', limit: number = 100): Promise<EquipmentResponseDto[]> {
-        let query = `SELECT id, code as itemCode, name as userName, status, createdAt as dateFrom FROM Equipment`;
+        let query = `SELECT id, code as itemCode, name as userName, status, createdAt as dateFrom, dateTo, comment FROM Equipment`;
         
         if (status) {
             query += ` WHERE status = '${status}'`;
@@ -22,10 +21,11 @@ export class EquipmentRepository {
         
         return await all<EquipmentResponseDto>(query);
     }
+
     // 2. Отримати одну за ID
     async getById(id: number): Promise<EquipmentResponseDto | undefined> {
         const row = await get<any>(
-            `SELECT id, code as itemCode, name as userName, status, createdAt as dateFrom FROM Equipment WHERE id = ${id}`
+            `SELECT id, code as itemCode, name as userName, status, createdAt as dateFrom, dateTo, comment FROM Equipment WHERE id = ${id}`
         );
         
         if (!row) return undefined;
@@ -38,9 +38,11 @@ export class EquipmentRepository {
     // 3. Створення запису
     async create(dto: CreateEquipmentDto): Promise<EquipmentResponseDto> {
         const dateFrom = dto.dateFrom || new Date().toISOString();
+        const dateTo = dto.dateTo || "";
+        const comment = dto.comment || "";
         
-        const query = `INSERT INTO Equipment (code, name, status, userId, createdAt) 
-                       VALUES ('${dto.itemCode}', '${dto.userName}', '${dto.status}', 1, '${dateFrom}')`;
+        const query = `INSERT INTO Equipment (code, name, status, userId, createdAt, dateTo, comment) 
+                       VALUES ('${dto.itemCode}', '${dto.userName}', '${dto.status}', 1, '${dateFrom}', '${dateTo}', '${comment}')`;
         
         const result = await run(query);
 
@@ -49,16 +51,16 @@ export class EquipmentRepository {
             itemCode: dto.itemCode,
             userName: dto.userName,
             dateFrom: dateFrom,
-            dateTo: dto.dateTo,
+            dateTo: dateTo,
             status: dto.status,
-            comment: dto.comment || ""
+            comment: comment
         } as EquipmentResponseDto;
     }
 
     // 4. Оновлення
     async update(id: number, dto: CreateEquipmentDto): Promise<EquipmentResponseDto | undefined> {
         const query = `UPDATE Equipment 
-                       SET code = '${dto.itemCode}', name = '${dto.userName}', status = '${dto.status}' 
+                       SET code = '${dto.itemCode}', name = '${dto.userName}', status = '${dto.status}', dateTo = '${dto.dateTo}', comment = '${dto.comment || ""}' 
                        WHERE id = ${id}`;
         await run(query);
         return this.getById(id);
